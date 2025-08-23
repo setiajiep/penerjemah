@@ -47,7 +47,8 @@
           const [inputText, setInputText] = React.useState('');
           const [language, setLanguage] = React.useState('id');
           const [textType, setTextType] = React.useState('general');
-          const [apiKey, setApiKey] = React.useState('');
+          // Kunci API sekarang sudah diisi secara default
+          const [apiKey, setApiKey] = React.useState('AIzaSyBU9KgI49GJx93HNIc8cqZrGnr2WUimLhM');
           const [result, setResult] = React.useState(null);
           const [isLoading, setIsLoading] = React.useState(false);
           const [error, setError] = React.useState(null);
@@ -175,11 +176,11 @@
                             id="api-key"
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="Masukkan Kunci API Anda di sini"
+                            placeholder="Kunci API sudah dimasukkan"
                             className="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                         />
                          <p className="text-xs text-gray-500 mt-2">
-                            Anda bisa mendapatkan Kunci API gratis dari <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:underline">Google AI Studio</a>.
+                            Kunci API Anda sudah terisi. Anda bisa menggantinya jika perlu.
                         </p>
                     </div>
 
