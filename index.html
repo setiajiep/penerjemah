@@ -54,7 +54,7 @@
             { code: 'ur', name: 'اردو' },
           ];
 
-          // Fungsi untuk memanggil API Gemini
+          // Fungsi untuk memanggil API Gemini dengan penanganan error yang lebih baik
           const handleSubmit = async (e) => {
             e.preventDefault();
             if (!inputText.trim()) {
@@ -66,7 +66,6 @@
             setError(null);
             setResult(null);
 
-            // Prompt yang detail untuk LLM
             const prompt = `
               Anda adalah seorang ahli dalam bahasa Arab dan studi Islam. Tugas Anda adalah memproses teks Arab berikut:
 
@@ -81,7 +80,6 @@
               Pastikan output Anda dalam format JSON yang ketat.
             `;
             
-            // Skema JSON untuk output yang terstruktur
             const schema = {
                 type: "OBJECT",
                 properties: {
@@ -94,9 +92,8 @@
             };
 
             try {
-                const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
                 const payload = { 
-                    contents: chatHistory,
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
                     generationConfig: {
                         responseMimeType: "application/json",
                         responseSchema: schema,
@@ -112,22 +109,36 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`API request failed with status ${response.status}`);
+                    const errorBody = await response.text();
+                    throw new Error(`Permintaan API gagal dengan status ${response.status}. Respons: ${errorBody}`);
                 }
 
                 const data = await response.json();
                 
-                if (data.candidates && data.candidates.length > 0 && data.candidates[0].content.parts[0].text) {
+                if (data.error) {
+                    throw new Error(`API mengembalikan kesalahan: ${data.error.message}`);
+                }
+                
+                if (data.candidates && data.candidates.length > 0 && data.candidates[0].content?.parts?.[0]?.text) {
                     const responseText = data.candidates[0].content.parts[0].text;
-                    const parsedJson = JSON.parse(responseText);
-                    setResult(parsedJson);
+                    try {
+                        const parsedJson = JSON.parse(responseText);
+                        setResult(parsedJson);
+                    } catch (parseError) {
+                        console.error("Kesalahan Parsing JSON:", parseError, "Teks Mentah:", responseText);
+                        throw new Error("Gagal mem-parsing respons dari server karena bukan format JSON yang valid.");
+                    }
                 } else {
-                    throw new Error("Respons dari API tidak valid atau kosong.");
+                    if (data.candidates?.[0]?.finishReason === 'SAFETY') {
+                        throw new Error("Konten diblokir karena kebijakan keamanan. Harap ubah teks input Anda.");
+                    }
+                    console.error("Struktur Respons API Tidak Valid:", data);
+                    throw new Error("Respons dari API tidak valid atau kosong. Mungkin karena teks terlalu panjang atau kompleks.");
                 }
 
             } catch (err) {
               console.error(err);
-              setError('Terjadi kesalahan saat memproses teks. Silakan coba lagi.');
+              setError(err.message || 'Terjadi kesalahan yang tidak diketahui. Silakan coba lagi.');
             } finally {
               setIsLoading(false);
             }
