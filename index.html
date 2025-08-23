@@ -34,13 +34,20 @@
             <path d="M14 18h6" />
           </svg>
         );
+        
+        const KeyRound = (props) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+                <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z" /><circle cx="16.5" cy="7.5" r=".5" fill="currentColor" />
+            </svg>
+        );
 
         // Komponen utama aplikasi
         function App() {
           // State untuk menyimpan input, pilihan, hasil, dan status loading/error
           const [inputText, setInputText] = React.useState('');
-          const [language, setLanguage] = React.useState('id'); // Default ke Bahasa Indonesia
+          const [language, setLanguage] = React.useState('id');
           const [textType, setTextType] = React.useState('general');
+          const [apiKey, setApiKey] = React.useState('');
           const [result, setResult] = React.useState(null);
           const [isLoading, setIsLoading] = React.useState(false);
           const [error, setError] = React.useState(null);
@@ -54,9 +61,13 @@
             { code: 'ur', name: 'اردو' },
           ];
 
-          // Fungsi untuk memanggil API Gemini dengan penanganan error yang lebih baik
+          // Fungsi untuk memanggil API Gemini
           const handleSubmit = async (e) => {
             e.preventDefault();
+            if (!apiKey.trim()) {
+              setError('Harap masukkan Kunci API Google AI Anda untuk melanjutkan.');
+              return;
+            }
             if (!inputText.trim()) {
               setError('Teks Arab tidak boleh kosong.');
               return;
@@ -99,7 +110,7 @@
                         responseSchema: schema,
                     }
                 };
-                const apiKey = ""; // Kunci API akan disediakan oleh environment
+                
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                 
                 const response = await fetch(apiUrl, {
@@ -109,36 +120,26 @@
                 });
 
                 if (!response.ok) {
-                    const errorBody = await response.text();
-                    throw new Error(`Permintaan API gagal dengan status ${response.status}. Respons: ${errorBody}`);
+                    const errorBody = await response.json();
+                    throw new Error(`Permintaan API gagal: ${errorBody.error.message}`);
                 }
 
                 const data = await response.json();
                 
-                if (data.error) {
-                    throw new Error(`API mengembalikan kesalahan: ${data.error.message}`);
-                }
-                
                 if (data.candidates && data.candidates.length > 0 && data.candidates[0].content?.parts?.[0]?.text) {
                     const responseText = data.candidates[0].content.parts[0].text;
-                    try {
-                        const parsedJson = JSON.parse(responseText);
-                        setResult(parsedJson);
-                    } catch (parseError) {
-                        console.error("Kesalahan Parsing JSON:", parseError, "Teks Mentah:", responseText);
-                        throw new Error("Gagal mem-parsing respons dari server karena bukan format JSON yang valid.");
-                    }
+                    const parsedJson = JSON.parse(responseText);
+                    setResult(parsedJson);
                 } else {
-                    if (data.candidates?.[0]?.finishReason === 'SAFETY') {
+                     if (data.candidates?.[0]?.finishReason === 'SAFETY') {
                         throw new Error("Konten diblokir karena kebijakan keamanan. Harap ubah teks input Anda.");
                     }
-                    console.error("Struktur Respons API Tidak Valid:", data);
-                    throw new Error("Respons dari API tidak valid atau kosong. Mungkin karena teks terlalu panjang atau kompleks.");
+                    throw new Error("Respons dari API tidak valid atau kosong.");
                 }
 
             } catch (err) {
               console.error(err);
-              setError(err.message || 'Terjadi kesalahan yang tidak diketahui. Silakan coba lagi.');
+              setError(err.message || 'Terjadi kesalahan yang tidak diketahui.');
             } finally {
               setIsLoading(false);
             }
@@ -164,6 +165,26 @@
 
                 <main>
                   <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-lg space-y-6 border border-gray-200">
+                    <div>
+                        <label htmlFor="api-key" className="flex items-center text-lg font-medium text-gray-700 mb-2">
+                            <KeyRound className="w-5 h-5 mr-2" />
+                            Kunci API Google AI
+                        </label>
+                        <input
+                            type="password"
+                            id="api-key"
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
+                            placeholder="Masukkan Kunci API Anda di sini"
+                            className="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                        />
+                         <p className="text-xs text-gray-500 mt-2">
+                            Anda bisa mendapatkan Kunci API gratis dari <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:underline">Google AI Studio</a>.
+                        </p>
+                    </div>
+
+                    <hr/>
+
                     <div>
                       <label htmlFor="arabic-text" className="block text-lg font-medium text-gray-700 mb-2">
                         Masukkan Teks Arab
